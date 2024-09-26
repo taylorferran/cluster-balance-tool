@@ -104,7 +104,7 @@ const SSVClusterBalanceFetcher = () => {
         console.log("NF: ", responseData.data.daovalues.networkFee)
         console.log("CNFI: ", responseData.data.cluster.networkFeeIndex)
 
-        const networkFee = responseData.data.daovalues.networkFeeIndex + (responseData.data._meta.block.number - responseData.data.daovalues.networkFeeIndexBlockNumber) * responseData.data.daovalues.networkFee - (responseData.data.cluster.networkFeeIndex*10000000);
+        const networkFee = parseInt(responseData.data.daovalues.networkFeeIndex) + (responseData.data._meta.block.number - parseInt(responseData.data.daovalues.networkFeeIndexBlockNumber)) * parseInt(responseData.data.daovalues.networkFee) - (responseData.data.cluster.networkFeeIndex*10000000);
 
         console.log("network fee: ", networkFee)
 
