@@ -21,7 +21,7 @@ const SSVClusterBalanceFetcher = () => {
 
     const clusterQuery = `{
         account(id: "${accountAddress.toLocaleLowerCase()}") {
-          clusters(where: {active: true, validatorCount_gt: "0"}) {
+          clusters(where: {active: true}) {
             operatorIds
           }
         }
@@ -36,8 +36,6 @@ const SSVClusterBalanceFetcher = () => {
       url = mainnet_url
       daoAddress = "0xdd9bc35ae942ef0cfa76930954a156b3ff30a4e1"
     }
-
-    console.log(url)
 
     setClusterArray([])
     setTableFull(false)
@@ -58,12 +56,8 @@ const SSVClusterBalanceFetcher = () => {
 
 
       for (const operatorIdList of operatorIdArray) {
-        console.log(operatorIdList)
-
         const operatorIds = operatorIdList.map(x => x.toString())
         const clusterId = `${accountAddress.toLocaleLowerCase()}-${operatorIds.join("-")}`
-
-        console.log(clusterId)
 
         const query = `{
           _meta {
@@ -75,6 +69,7 @@ const SSVClusterBalanceFetcher = () => {
             networkFee
             networkFeeIndex
             networkFeeIndexBlockNumber
+            liquidationThreshold
           }
           operators(where: {id_in: ["${operatorIds.join('", "')}"]}) {
             fee
@@ -88,6 +83,7 @@ const SSVClusterBalanceFetcher = () => {
             balance
           }
         }`;
+
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -97,57 +93,48 @@ const SSVClusterBalanceFetcher = () => {
         });
 
         const responseData = await response.json();
-
-        console.log("NFI: ", responseData.data.daovalues.networkFeeIndex)
-        console.log("BN: ", responseData.data._meta.block.number)
-        console.log("NFIBN: ", responseData.data.daovalues.networkFeeIndexBlockNumber)
-        console.log("NF: ", responseData.data.daovalues.networkFee)
-        console.log("CNFI: ", responseData.data.cluster.networkFeeIndex)
-
-        const networkFee = parseInt(responseData.data.daovalues.networkFeeIndex) + (responseData.data._meta.block.number - parseInt(responseData.data.daovalues.networkFeeIndexBlockNumber)) * parseInt(responseData.data.daovalues.networkFee) - (responseData.data.cluster.networkFeeIndex*10000000);
-
-        console.log("network fee: ", networkFee)
-
-        /*
-        let operatorFee = 0;
-        for (const operator of responseData.data.operators) {
-          console.log("OFI: ", operator.feeIndex)
-          console.log("OFIBN: ", operator.feeIndexBlockNumber)
-          console.log("OF: ", operator.fee)
-          console.log("CI: ", responseData.data.cluster.index)
-
-          const temp = (operator.feeIndex + (responseData.data._meta.block.number - operator.feeIndexBlockNumber) * operator.fee) - (responseData.data.cluster.index*10000000);
-          if(temp > 0) {
-            operatorFee += temp;
-          }
-          console.log("opfee: ", temp)
-        }*/
-
-        let operatorFee = -responseData.data.cluster.index * 10000000;
+        const cumulativeNetworkFee = parseInt(responseData.data.daovalues.networkFeeIndex) + (responseData.data._meta.block.number - parseInt(responseData.data.daovalues.networkFeeIndexBlockNumber)) * parseInt(responseData.data.daovalues.networkFee) - (responseData.data.cluster.networkFeeIndex*10000000);
+        let cumulativeOperatorFee = -responseData.data.cluster.index * 10000000;
 
         for (let operator of responseData.data.operators) {
-            operatorFee += parseInt(operator.feeIndex) + (responseData.data._meta.block.number - parseInt(operator.feeIndexBlockNumber)) * parseInt(operator.fee)
+            cumulativeOperatorFee += parseInt(operator.feeIndex) + (responseData.data._meta.block.number - parseInt(operator.feeIndexBlockNumber)) * parseInt(operator.fee)
         }
-        console.log("operator fee: ", operatorFee)
+
+        //responseData.data.operators.map((op) => )
+        const opFee = responseData.data.operators.reduce(
+          (accumulator, currentValue) => accumulator + parseInt(currentValue.fee),
+          0,
+        )
+
 
         let currentClusterArray = clusterArray
-        console.log("cluster balance: ", responseData.data.cluster.balance)
-        console.log("Validator count: ", responseData.data.cluster.validatorCount)
         let calculatedClusterBalance
 
         if(responseData.data.cluster.validatorCount > 0){
-          calculatedClusterBalance = responseData.data.cluster.balance - (networkFee + operatorFee) * responseData.data.cluster.validatorCount;
+          calculatedClusterBalance = responseData.data.cluster.balance - (cumulativeNetworkFee + cumulativeOperatorFee) * responseData.data.cluster.validatorCount;
         } else {
-          calculatedClusterBalance = responseData.data.cluster.balance - (networkFee + operatorFee)
+          calculatedClusterBalance = responseData.data.cluster.balance - (cumulativeNetworkFee + cumulativeOperatorFee)
         }
 
-        console.log(calculatedClusterBalance)
-        const currentCluster = [operatorIds.join(","), (calculatedClusterBalance/1000000000000000000).toFixed(3)]
+        const burnRate = (opFee + parseInt(responseData.data.daovalues.networkFee)) * responseData.data.cluster.validatorCount
+
+        // TODO: Include min liquidation collateral 
+        let LDC = burnRate * responseData.data.daovalues.liquidationThreshold
+
+        let runway = (calculatedClusterBalance - LDC) / burnRate
+
+        console.log("burnRate: ", burnRate)
+        console.log("opFee: ", opFee)
+        console.log("LT: ", responseData.data.daovalues.liquidationThreshold)
+        console.log("runway : ", runway)
+
+        const runwayInDays = runway /  7168
+
+        const currentCluster = [operatorIds.join(","), (calculatedClusterBalance/1000000000000000000).toFixed(3), runway.toFixed(0)]
         currentClusterArray.push(currentCluster)
         setClusterArray(currentClusterArray)
       }
       setTableFull(true)
-      console.log(clusterArray)
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("An error occurred while fetching data.");
@@ -160,7 +147,6 @@ const SSVClusterBalanceFetcher = () => {
 <div className="flex justify-center items-center min-h-screen bg-[#0E0E52]">
   <div className="bg-[#0E0E52] shadow-md rounded-lg p-8 w-full max-w-md">
     <div className="flex justify-center mb-6">
-      {/* Add the SSV Network logo */}
       <img src="https://ssv.network/wp-content/uploads/2024/09/Symbol.png" alt="SSV Network Logo" className="h-21 w-16" />
     </div>
 
@@ -183,11 +169,11 @@ const SSVClusterBalanceFetcher = () => {
       <span className="text-white font-medium ml-4">Holesky</span>
     </div>
 
-    <div className="mb-4">
+    <div className="flex justify-center mb-4">
       <input 
         onChange={(event) => fetchData(event.target.value)}
         placeholder="Paste Account Address..."
-        className="w-full px-4 py-2 border border-gray-500 rounded-lg bg-[#0E0E52] text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        className="w-[300px] px-4 py-2 border border-gray-500 rounded-lg bg-[#0E0E52] text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
     </div>
 
@@ -201,20 +187,22 @@ const SSVClusterBalanceFetcher = () => {
     </div>
 
     {tableFull !== false && (
-      <div className="container mx-auto">
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-[#0E0E52] ">
+      <div className="w-full overflow-visible">
+        <div className="min-w-max">
+          <table className="w-full bg-[#0E0E52] table-auto">
             <thead>
               <tr className="bg-[#0E0E52] text-white text-center">
-                <th className="px-4 py-2">Operator IDs</th>
-                <th className="px-4 py-2">Cluster Balance</th>
+                <th className="px-4 py-2 whitespace-nowrap">Operator IDs</th>
+                <th className="px-4 py-2 whitespace-nowrap">Cluster Balance</th>
+                <th className="px-4 py-2 whitespace-nowrap">Runway</th>
               </tr>
             </thead>
             <tbody>
               {clusterArray.map((cluster, index) => (
                 <tr key={index} className="text-center align-middle text-white">
                   <td className="px-4 py-2 break-all">{cluster[0]}</td>
-                  <td className="px-4 py-2 align-middle">{cluster[1]} SSV</td>
+                  <td className="px-4 py-2">{cluster[1]} SSV</td>
+                  <td className="px-4 py-2">{cluster[2]} blocks</td>
                 </tr>
               ))}
             </tbody>
@@ -227,6 +215,7 @@ const SSVClusterBalanceFetcher = () => {
     
   </div>
 </div>
+
 
   );
 };
