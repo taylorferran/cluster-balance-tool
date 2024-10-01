@@ -70,6 +70,7 @@ const SSVClusterBalanceFetcher = () => {
             networkFeeIndex
             networkFeeIndexBlockNumber
             liquidationThreshold
+            minimumLiquidationCollateral
           }
           operators(where: {id_in: ["${operatorIds.join('", "')}"]}) {
             fee
@@ -100,37 +101,28 @@ const SSVClusterBalanceFetcher = () => {
             cumulativeOperatorFee += parseInt(operator.feeIndex) + (responseData.data._meta.block.number - parseInt(operator.feeIndexBlockNumber)) * parseInt(operator.fee)
         }
 
-        //responseData.data.operators.map((op) => )
         const opFee = responseData.data.operators.reduce(
           (accumulator, currentValue) => accumulator + parseInt(currentValue.fee),
           0,
         )
 
-
+        // Calculate cluster balance
         let currentClusterArray = clusterArray
         let calculatedClusterBalance
-
         if(responseData.data.cluster.validatorCount > 0){
           calculatedClusterBalance = responseData.data.cluster.balance - (cumulativeNetworkFee + cumulativeOperatorFee) * responseData.data.cluster.validatorCount;
         } else {
           calculatedClusterBalance = responseData.data.cluster.balance - (cumulativeNetworkFee + cumulativeOperatorFee)
         }
 
+        // Calculate runway 
         const burnRate = (opFee + parseInt(responseData.data.daovalues.networkFee)) * responseData.data.cluster.validatorCount
+        const mLc = responseData.data.daovalues.minimumLiquidationCollateral
+        const LC = Math.max(mLc, (burnRate * responseData.data.daovalues.liquidationThreshold));
+        let runwaySSV = calculatedClusterBalance - LC
+        const operationalRunway = runwaySSV / burnRate
 
-        // TODO: Include min liquidation collateral 
-        let LDC = burnRate * responseData.data.daovalues.liquidationThreshold
-
-        let runway = (calculatedClusterBalance - LDC) / burnRate
-
-        console.log("burnRate: ", burnRate)
-        console.log("opFee: ", opFee)
-        console.log("LT: ", responseData.data.daovalues.liquidationThreshold)
-        console.log("runway : ", runway)
-
-        const runwayInDays = runway /  7168
-
-        const currentCluster = [operatorIds.join(","), (calculatedClusterBalance/1000000000000000000).toFixed(3), runway.toFixed(0)]
+        const currentCluster = [operatorIds.join(","), (calculatedClusterBalance/1000000000000000000).toFixed(3), operationalRunway.toFixed(0)]
         currentClusterArray.push(currentCluster)
         setClusterArray(currentClusterArray)
       }
