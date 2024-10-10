@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { Switch } from "@headlessui/react";
 
+const secondsPerDay = 86400
+const avgBlockTime = 12
+const blocksPerDay = secondsPerDay / avgBlockTime
 
 const SSVClusterBalanceFetcher = () => {
   const [clusterArray, setClusterArray] = useState([]);
@@ -194,7 +197,7 @@ const SSVClusterBalanceFetcher = () => {
                 <tr key={index} className="text-center align-middle text-white">
                   <td className="px-4 py-2 break-all">{cluster[0]}</td>
                   <td className="px-4 py-2">{cluster[1]} SSV</td>
-                  <td className="px-4 py-2">{cluster[2]} blocks</td>
+                  <td className="px-4 py-2">{(cluster[2] / blocksPerDay).toFixed(0)} days ({cluster[2]} blocks)</td>
                 </tr>
               ))}
             </tbody>
