@@ -182,29 +182,41 @@ const SSVClusterBalanceFetcher = () => {
     </div>
 
     {tableFull !== false && (
-      <div className="w-full overflow-visible">
-        <div className="min-w-max">
-          <table className="w-full bg-[#0E0E52] table-auto">
-            <thead>
-              <tr className="bg-[#0E0E52] text-white text-center">
-                <th className="px-4 py-2 whitespace-nowrap">Operator IDs</th>
-                <th className="px-4 py-2 whitespace-nowrap">Cluster Balance</th>
-                <th className="px-4 py-2 whitespace-nowrap">Runway</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clusterArray.map((cluster, index) => (
-                <tr key={index} className="text-center align-middle text-white">
-                  <td className="px-4 py-2 break-all">{cluster[0]}</td>
-                  <td className="px-4 py-2">{cluster[1]} SSV</td>
-                  <td className="px-4 py-2">{(cluster[2] / blocksPerDay).toFixed(0)} days ({cluster[2]} blocks)</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )}
+  <div className="w-full overflow-visible">
+    <div className="mx-auto max-w-full">
+      <table className="w-full bg-[#0E0E52] table-auto text-center">
+        <thead>
+          <tr className="bg-[#0E0E52] text-white">
+            <th className="px-4 py-2 whitespace-nowrap">Operator IDs</th>
+            <th className="px-4 py-2 whitespace-nowrap">Cluster Balance</th>
+            <th className="px-4 py-2 whitespace-nowrap">Runway</th>
+          </tr>
+        </thead>
+        <tbody>
+          {clusterArray.map((cluster, index) => (
+            <tr key={index} className="text-white">
+              <td
+                className="px-4 py-2"
+                style={{
+                  wordBreak: 'break-word',
+                  maxWidth: '200px',
+                  textAlign: 'center',
+                }}
+              >
+                {cluster[0]}
+              </td>
+              <td className="px-4 py-2 break-words">{cluster[1]} SSV</td>
+              <td className="px-4 py-2">
+                {(cluster[2] / blocksPerDay).toFixed(0)} days ({cluster[2]} blocks)
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
 
     {error && <p className="text-red-500 text-center mb-2">{error}</p>}
     
