@@ -1,70 +1,93 @@
-# Getting Started with Create React App
+# Cluster Balance Tool
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
-
-## Available Scripts
+## Run the tool 
 
 In the project directory, you can run:
+``` bash
+npm i
+npm start
+```
 
-### `npm start`
+## Code walkthrough 
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+We start by defining the Subgraph URL, this is where we will send the request to.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+```javascript
+const holesky_url = "https://api.studio.thegraph.com/query/71118/ssv-network-holesky/version/latest";
+```
 
-### `npm test`
+Then we define the query we want to send to get data on a certain account, we take in the input from what address the user enters and pass it into the query.
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+This query will give us the operator IDs of all active clusters for this account.
 
-### `npm run build`
+```javascript
+const clusterQuery = `{
+    account(id: "${accountAddress.toLocaleLowerCase()}") {
+        clusters(where: {active: true}) {
+        operatorIds
+        }
+    }
+}`;
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Next we send the request using fetch, and save each operator ID array for each cluster to another array.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```javascript
+let query = clusterQuery;
+const cluster_response = await fetch(url, {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query })
+});
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+const clusterData = await cluster_response.json();
+const operatorIdArray = clusterData.data.account.clusters.map(cluster => cluster.operatorIds);
+```
 
-### `npm run eject`
+For this next step we need to get a lot of data to correctly compute the [Cluster Balance](https://docs.ssv.network/learn/stakers/clusters/cluster-balance). 
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+For each cluster, we get the operator IDs, and the cluster ID, then build a query using these values. 
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+``` javascript 
+for (const operatorIdList of operatorIdArray) {
+        const operatorIds = operatorIdList.map(x => x.toString())
+        const clusterId = `${accountAddress.toLocaleLowerCase()}-${operatorIds.join("-")}`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+        const query = `{
+          _meta {
+            block {
+              number
+            }
+          }
+          daovalues(id: "${daoAddress}") {
+            networkFee
+            networkFeeIndex
+            networkFeeIndexBlockNumber
+            liquidationThreshold
+            minimumLiquidationCollateral
+          }
+          operators(where: {id_in: ["${operatorIds.join('", "')}"]}) {
+            fee
+            feeIndex
+            feeIndexBlockNumber
+          }
+          cluster(id: "${clusterId}") {
+            validatorCount
+            networkFeeIndex
+            index
+            balance
+          }
+        }`;
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ query })
+    });
+```
 
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+The rest of the code contained within the for loop is the programmatic version of the [Cluster Balance Formula](https://docs.ssv.network/learn/stakers/clusters/cluster-balance#cluster-balance-formula) which can be reused.
