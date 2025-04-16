@@ -13,7 +13,7 @@ const SSVClusterBalanceFetcher = () => {
   const [error, setError] = useState(null);
 
   const holesky_url = "https://api.studio.thegraph.com/query/71118/ssv-network-holesky/version/latest";
-  const mainnet_url = "https://api.studio.thegraph.com/query/71118/ssv-network-ethereum/version/latest"
+  const mainnet_url = "https://api.studio.thegraph.com/query/53804/ssv-mainnet/version/latest"
 
   const fetchData = async (accountAddress) => {
     setClusterArray([])
