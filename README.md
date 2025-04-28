@@ -13,7 +13,7 @@ npm start
 We start by defining the Subgraph URL, this is where we will send the request to.
 
 ```javascript
-const holesky_url = "https://api.studio.thegraph.com/query/71118/ssv-network-holesky/version/latest";
+  const hoodi_url = "https://api.studio.thegraph.com/query/71118/ssv-network-hoodi/version/latest/";
 ```
 
 Then we define the query we want to send to get data on a certain account, we take in the input from what address the user enters and pass it into the query.

@@ -12,8 +12,8 @@ const SSVClusterBalanceFetcher = () => {
   const [testnet, setTestnet] = useState(false)
   const [error, setError] = useState(null);
 
-  const holesky_url = "https://api.studio.thegraph.com/query/71118/ssv-network-holesky/version/latest";
-  const mainnet_url = "https://api.studio.thegraph.com/query/53804/ssv-mainnet/version/latest"
+  const hoodi_url = "https://api.studio.thegraph.com/query/71118/ssv-network-hoodi/version/latest/";
+  const mainnet_url = "https://api.studio.thegraph.com/query/71118/ssv-network-ethereum/version/latest"
 
   const fetchData = async (accountAddress) => {
     setClusterArray([])
@@ -33,8 +33,8 @@ const SSVClusterBalanceFetcher = () => {
     let url
     let daoAddress
     if (testnet) {
-      url = holesky_url
-      daoAddress = "0x38A4794cCEd47d3baf7370CcC43B560D3a1beEFA"
+      url = hoodi_url
+      daoAddress = "0x58410Bef803ECd7E63B23664C586A6DB72DAf59c"
     } else {
       url = mainnet_url
       daoAddress = "0xdd9bc35ae942ef0cfa76930954a156b3ff30a4e1"
@@ -97,6 +97,8 @@ const SSVClusterBalanceFetcher = () => {
         });
 
         const responseData = await response.json();
+
+        console.log(responseData)
         const cumulativeNetworkFee = parseInt(responseData.data.daovalues.networkFeeIndex) + (responseData.data._meta.block.number - parseInt(responseData.data.daovalues.networkFeeIndexBlockNumber)) * parseInt(responseData.data.daovalues.networkFee) - (responseData.data.cluster.networkFeeIndex * 10000000);
         let cumulativeOperatorFee = -responseData.data.cluster.index * 10000000;
 
@@ -171,7 +173,7 @@ const SSVClusterBalanceFetcher = () => {
             pointer-events-none inline-block h-[17px] w-[17px] transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out`}
               />
             </Switch>
-            <span className="text-white font-medium ml-4">Holesky</span>
+            <span className="text-white font-medium ml-4">Hoodi</span>
           </div>
 
           <div className="flex justify-center mb-4">
